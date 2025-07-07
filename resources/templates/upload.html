@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSV - COVID-19 Data Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .upload-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .file-input-wrapper input[type="file"] {
+            padding: 10px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+        .drag-text {
+            text-align: center;
+            padding: 50px 0;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .drag-text.active {
+            border-color: #28a745;
+            background-color: #f1f9f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-container">
+            <h2 class="mb-4 text-center">Upload COVID-19 CSV Data</h2>
+            
+            <div th:if="${message}" class="alert" th:classappend="${message.contains('Successfully')} ? 'alert-success' : 'alert-danger'">
+                <p th:text="${message}"></p>
+            </div>
+            
+            <form method="POST" enctype="multipart/form-data" action="/upload" id="uploadForm">
+                <div class="drag-text" id="drop-area">
+                    <p>Drag and drop your CSV file here</p>
+                    <p>or</p>
+                    <p><button type="button" class="btn btn-primary" id="browseBtn">Browse Files</button></p>
+                </div>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" name="file" id="fileInput" accept=".csv" style="display: none;">
+                    <div id="fileInfo" class="mt-2"></div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" type="submit" id="uploadBtn" disabled>Upload and Analyze</button>
+                </div>
+            </form>
+            
+            <div class="mt-4">
+                <h5>Expected CSV Format:</h5>
+                <p>The CSV file should contain the following columns:</p>
+                <ul>
+                    <li>Sno</li>
+                    <li>Date (DD/MM/YY format)</li>
+                    <li>Time</li>
+                    <li>State/UnionTerritory</li>
+                    <li>ConfirmedIndianNational</li>
+                    <li>ConfirmedForeignNational</li>
+                    <li>Cured</li>
+                    <li>Deaths</li>
+                    <li>Confirmed</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const fileInfo = document.getElementById('fileInfo');
+            
+            // Handle browse button click
+            browseBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            // Handle file selection
+            fileInput.addEventListener('change', function() {
+                handleFiles(this.files);
+            });
+            
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Highlight drop area when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            // Handle dropped files
+            dropArea.addEventListener('drop', handleDrop, false);
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function highlight() {
+                dropArea.classList.add('active');
+            }
+            
+            function unhighlight() {
+                dropArea.classList.remove('active');
+            }
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+            
+            function handleFiles(files) {
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                        fileInfo.innerHTML = `
+                            <div class="alert alert-info">
+                                <strong>Selected file:</strong> ${file.name} (${formatFileSize(file.size)})
+                            </div>
+                        `;
+                        uploadBtn.disabled = false;
+                    } else {
+                        fileInfo.innerHTML = `
+                            <div class="alert alert-danger">
+                                Please select a CSV file.
+                            </div>
+                        `;
+                        uploadBtn.disabled = true;
+                    }
+                }
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes < 1024) return bytes + ' bytes';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                else return (bytes / 1048576).toFixed(1) + ' MB';
+            }
+        });
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

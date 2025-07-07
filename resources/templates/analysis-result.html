@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${analysisType + ' Analysis - COVID-19 Data Analyzer'}">Analysis Result - COVID-19 Data Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .result-container {
+            padding: 20px;
+        }
+        .result-card {
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+        .data-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">COVID-19 Data Analyzer</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload">Upload</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/analysis">Analysis</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container result-container">
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h2 th:text="${#strings.capitalize(analysisType) + ' Analysis'}">Analysis Result</h2>
+                <p>Generated on <span th:text="${#temporals.format(result.generatedDate, 'dd MMM yyyy')}">Date</span></p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a th:href="@{'/analysis/export/' + ${analysisType} + '?format=csv'}" class="btn btn-primary">Export as CSV</a>
+                <a th:href="@{'/analysis/export/' + ${analysisType} + '?format=json'}" class="btn btn-secondary">Export as JSON</a>
+            </div>
+        </div>
+        
+        <!-- Different content based on analysis type -->
+        <div th:if="${analysisType == 'statewise'}" class="row">
+            <div class="col-md-12">
+                <div class="card result-card">
+                    <div class="card-header">
+                        <h4>Key Findings</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>State with Highest Cases</h6>
+                                        <p class="h4" th:text="${result.resultData.get('stateWithHighestCases')}">-</p>
+                                        <p>Total Cases: <span th:text="${result.resultData.get('highestCases')}">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>State with Highest Deaths</h6>
+                                        <p class="h4" th:text="${result.resultData.get('stateWithHighestDeaths')}">-</p>
+                                        <p>Total Deaths: <span th:text="${result.resultData.get('highestDeaths')}">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>State with Highest Recovery</h6>
+                                        <p class="h4" th:text="${result.resultData.get('stateWithHighestRecovery')}">-</p>
+                                        <p>Total Recovered: <span th:text="${result.resultData.get('highestRecovery')}">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Overall Mortality Rate</h6>
+                                        <p class="h4">
+                                            <span th:text="${#numbers.formatDecimal(result.resultData.get('mortalityRate'), 1, 2)}">0</span>%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Overall Recovery Rate</h6>
+                                        <p class="h4">
+                                            <span th:text="${#numbers.formatDecimal(result.resultData.get('recoveryRate'), 1, 2)}">0</span>%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div th:if="${analysisType == 'timeseries'}" class="row">
+            <div class="col-md-12">
+                <div class="card result-card">
+                    <div class="card-header">
+                        <h4>Key Findings</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Date with Highest New Cases</h6>
+                                        <p class="h4" th:text="${result.resultData.get('dateWithHighestNewCases')}">-</p>
+                                        <p>New Cases: <span th:text="${result.resultData.get('highestNewCases')}">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Date with Highest New Deaths</h6>
+                                        <p class="h4" th:text="${result.resultData.get('dateWithHighestNewDeaths')}">-</p>
+                                        <p>New Deaths: <span th:text="${result.resultData.get('highestNewDeaths')}">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Date with Highest New Recoveries</h6>
+                                        <p class="h4" th:text="${result.resultData.get('dateWithHighestNewRecoveries')}">-</p>
+                                        <p>New Recoveries: <span th:text="${result.resultData.get('highestNewRecoveries')}">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div th:if="${analysisType == 'growthrate'}" class="row">
+            <div class="col-md-12">
+                <div class="card result-card">
+                    <div class="card-header">
+                        <h4>Key Findings</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Average Daily Growth Rate</h6>
+                                        <p class="h4">
+                                            <span th:text="${#numbers.formatDecimal(result.resultData.get('averageDailyGrowthRate'), 1, 2)}">0</span>%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Average Weekly Growth Rate</h6>
+                                        <p class="h4">
+                                            <span th:text="${#numbers.formatDecimal(result.resultData.get('averageWeeklyGrowthRate'), 1, 2)}">0</span>%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Estimated Doubling Time</h6>
+                                        <p class="h4">
+                                            <span th:text="${#numbers.formatDecimal(result.resultData.get('estimatedDoublingTimeDays'), 1, 1)}">0</span> days
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Data Table Section -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card result-card">
+                    <div class="card-header">
+                        <h4>Raw Data</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="data-table">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Key</th>
+                                        <th>Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="entry : ${result.resultData.entrySet()}">
+                                        <td th:text="${entry.key}">Key</td>
+                                        <td th:text="${entry.value}">Value</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

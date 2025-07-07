@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - COVID-19 Data Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-container {
+            padding: 20px;
+        }
+        .stats-card {
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        .chart-container {
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #198754;
+        }
+        .state-analysis-container {
+            min-height: 300px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">COVID-19 Data Analyzer</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload">Upload</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analysis">Analysis</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container-fluid dashboard-container">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h2>COVID-19 Dashboard</h2>
+                <p>Overview of COVID-19 data analysis and visualization</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Key Statistics Cards -->
+            <div class="col-md-3">
+                <div class="card stats-card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Confirmed Cases</h5>
+                        <h2 class="card-text" th:text="${statewiseAnalysis.resultData.get('totalConfirmed')}">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card bg-danger text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Deaths</h5>
+                        <h2 class="card-text" th:text="${statewiseAnalysis.resultData.get('totalDeaths')}">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Recovered</h5>
+                        <h2 class="card-text" th:text="${statewiseAnalysis.resultData.get('totalCured')}">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Recovery Rate</h5>
+                        <h2 class="card-text">
+                            <span th:text="${#numbers.formatDecimal(statewiseAnalysis.resultData.get('recoveryRate'), 1, 2)}">0</span>%
+                        </h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <!-- Charts Section -->
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4>COVID-19 Cases by State</h4>
+                    <canvas id="stateComparisonChart"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h4>COVID-19 Cases Over Time</h4>
+                    <canvas id="timeSeriesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <!-- State-specific Analysis -->
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>State-specific Analysis</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="stateSelect">Select State:</label>
+                                    <select class="form-select" id="stateSelect">
+                                        <option value="">Select a state</option>
+                                        <option th:each="state : ${states}" th:value="${state}" th:text="${state}"></option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="chart-container">
+                                    <canvas id="stateSpecificChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- State Analysis Results -->
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>State Analysis Results</h5>
+                                    </div>
+                                    <div class="card-body state-analysis-container" id="stateAnalysisContainer">
+                                        <div class="text-center text-muted">
+                                            <p>Select a state to view detailed analysis</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <!-- Analysis Tabs -->
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-pills card-header-pills" id="analysisTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="statewise-tab" data-bs-toggle="tab" data-bs-target="#statewise" type="button" role="tab">Statewise Analysis</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="timeseries-tab" data-bs-toggle="tab" data-bs-target="#timeseries" type="button" role="tab">Time Series Analysis</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="growthrate-tab" data-bs-toggle="tab" data-bs-target="#growthrate" type="button" role="tab">Growth Rate Analysis</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="analysisTabsContent">
+                            <div class="tab-pane fade show active" id="statewise" role="tabpanel">
+                                <h5>Statewise Analysis</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-body">
+                                                <h6>State with Highest Cases</h6>
+                                                <p class="h4" th:text="${statewiseAnalysis.resultData.get('stateWithHighestCases')}">-</p>
+                                                <p>Total Cases: <span th:text="${statewiseAnalysis.resultData.get('highestCases')}">0</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-body">
+                                                <h6>State with Highest Deaths</h6>
+                                                <p class="h4" th:text="${statewiseAnalysis.resultData.get('stateWithHighestDeaths')}">-</p>
+                                                <p>Total Deaths: <span th:text="${statewiseAnalysis.resultData.get('highestDeaths')}">0</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <a href="/analysis/export/statewise?format=csv" class="btn btn-primary">Export as CSV</a>
+                                    <a href="/analysis/export/statewise?format=json" class="btn btn-secondary">Export as JSON</a>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="timeseries" role="tabpanel">
+                                <h5>Time Series Analysis</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-body">
+                                                <h6>Date with Highest New Cases</h6>
+                                                <p class="h4" th:text="${timeSeriesAnalysis.resultData.get('dateWithHighestNewCases')}">-</p>
+                                                <p>New Cases: <span th:text="${timeSeriesAnalysis.resultData.get('highestNewCases')}">0</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-body">
+                                                <h6>Date with Highest New Deaths</h6>
+                                                <p class="h4" th:text="${timeSeriesAnalysis.resultData.get('dateWithHighestNewDeaths')}">-</p>
+                                                <p>New Deaths: <span th:text="${timeSeriesAnalysis.resultData.get('highestNewDeaths')}">0</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <a href="/analysis/export/timeseries?format=csv" class="btn btn-primary">Export as CSV</a>
+                                    <a href="/analysis/export/timeseries?format=json" class="btn btn-secondary">Export as JSON</a>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="growthrate" role="tabpanel">
+                                <h5>Growth Rate Analysis</h5>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-body">
+                                                <h6>Average Daily Growth Rate</h6>
+                                                <p class="h4">
+                                                    <span th:text="${#numbers.formatDecimal(growthRateAnalysis.resultData.get('averageDailyGrowthRate'), 1, 2)}">0</span>%
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card mb-3">
+                                            <div class="card-body">
+                                                <h6>Average Weekly Growth Rate</h6>
+                                                <p class="h4">
+                                                    <span th:text="${#numbers.formatDecimal(growthRateAnalysis.resultData.get('averageWeeklyGrowthRate'), 1, 2)}">0</span>%
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <a href="/analysis/export/growthrate?format=csv" class="btn btn-primary">Export as CSV</a>
+                                    <a href="/analysis/export/growthrate?format=json" class="btn btn-secondary">Export as JSON</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            // Parse chart data from Thymeleaf
+            const stateComparisonChartData = /*[[${stateComparisonChart}]]*/ {};
+            const timeSeriesChartData = /*[[${timeSeriesChart}]]*/ {};
+            
+            // Render state comparison chart
+            const stateCtx = document.getElementById('stateComparisonChart').getContext('2d');
+            createBarChart(stateCtx, stateComparisonChartData);
+            
+            // Render time series chart
+            const timeCtx = document.getElementById('timeSeriesChart').getContext('2d');
+            createLineChart(timeCtx, timeSeriesChartData);
+            
+            // Handle state selection
+            const stateSelect = document.getElementById('stateSelect');
+            stateSelect.addEventListener('change', function() {
+                const selectedState = this.value;
+                if (selectedState) {
+                    // Show loading indicators
+                    document.getElementById('stateAnalysisContainer').innerHTML = `
+                        <div class="loading">
+                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Fetch state chart data
+                    fetch(`/dashboard/state-chart?state=${selectedState}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const stateChartCtx = document.getElementById('stateSpecificChart').getContext('2d');
+                            if (window.stateSpecificChart) {
+                                window.stateSpecificChart.destroy();
+                            }
+                            window.stateSpecificChart = createLineChart(stateChartCtx, data);
+                        });
+                    
+                    // Fetch state analysis data
+                    fetch(`/dashboard/state-analysis?state=${selectedState}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            renderStateAnalysis(data);
+                        });
+                }
+            });
+            
+            // Function to render state analysis
+            function renderStateAnalysis(analysisData) {
+                const container = document.getElementById('stateAnalysisContainer');
+                const resultData = analysisData.resultData;
+                
+                let html = `
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6>Total Confirmed Cases</h6>
+                                    <p class="h4">${resultData.totalConfirmed || 0}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6>Total Deaths</h6>
+                                    <p class="h4">${resultData.totalDeaths || 0}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6>Total Recovered</h6>
+                                    <p class="h4">${resultData.totalCured || 0}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6>Mortality Rate</h6>
+                                    <p class="h4">${resultData.mortalityRate ? resultData.mortalityRate.toFixed(2) : 0}%</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6>Recovery Rate</h6>
+                                    <p class="h4">${resultData.recoveryRate ? resultData.recoveryRate.toFixed(2) : 0}%</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                if (resultData.dateWithHighestCases) {
+                    html += `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Date with Highest Cases</h6>
+                                        <p class="h4">${resultData.dateWithHighestCases}</p>
+                                        <p>Cases: ${resultData.highestCasesCount || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h6>Average Growth Rate</h6>
+                                        <p class="h4">${resultData.averageGrowthRate ? resultData.averageGrowthRate.toFixed(2) : 0}%</p>
+                                        ${resultData.estimatedDoublingTimeDays ? `<p>Est. Doubling Time: ${resultData.estimatedDoublingTimeDays.toFixed(1)} days</p>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = html;
+            }
+            
+            // Helper function to create bar chart
+            function createBarChart(ctx, chartData) {
+                const labels = chartData.labels || [];
+                const datasets = [];
+                
+                // Process datasets
+                for (const [key, values] of Object.entries(chartData.datasets || {})) {
+                    let color;
+                    switch(key) {
+                        case 'Confirmed Cases':
+                            color = 'rgba(54, 162, 235, 0.7)';
+                            break;
+                        case 'Deaths':
+                            color = 'rgba(255, 99, 132, 0.7)';
+                            break;
+                        case 'Cured':
+                            color = 'rgba(75, 192, 192, 0.7)';
+                            break;
+                        default:
+                            color = 'rgba(201, 203, 207, 0.7)';
+                    }
+                    
+                    datasets.push({
+                        label: key,
+                        data: values,
+                        backgroundColor: color,
+                        borderColor: color.replace('0.7', '1'),
+                        borderWidth: 1
+                    });
+                }
+                
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: chartData.yAxisLabel || ''
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: chartData.xAxisLabel || ''
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: chartData.title || ''
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Helper function to create line chart
+            function createLineChart(ctx, chartData) {
+                const labels = chartData.labels || [];
+                const datasets = [];
+                
+                // Process datasets
+                for (const [key, values] of Object.entries(chartData.datasets || {})) {
+                    let color;
+                    switch(key) {
+                        case 'Confirmed Cases':
+                            color = 'rgba(54, 162, 235, 0.7)';
+                            break;
+                        case 'Deaths':
+                            color = 'rgba(255, 99, 132, 0.7)';
+                            break;
+                        case 'Cured':
+                            color = 'rgba(75, 192, 192, 0.7)';
+                            break;
+                        default:
+                            color = 'rgba(201, 203, 207, 0.7)';
+                    }
+                    
+                    datasets.push({
+                        label: key,
+                        data: values,
+                        backgroundColor: color,
+                        borderColor: color.replace('0.7', '1'),
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    });
+                }
+                
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: chartData.yAxisLabel || ''
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: chartData.xAxisLabel || ''
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: chartData.title || ''
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
